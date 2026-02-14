@@ -1,0 +1,2 @@
+# QRAula
+Proyecto Sistemas Distribuidos
