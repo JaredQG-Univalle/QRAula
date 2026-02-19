@@ -1,5 +1,6 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:universal_platform/universal_platform.dart';
 
 class CustomQRScanner extends StatefulWidget {
   final Function(String) onScan;
@@ -10,188 +11,142 @@ class CustomQRScanner extends StatefulWidget {
   State<CustomQRScanner> createState() => _CustomQRScannerState();
 }
 
-class _CustomQRScannerState extends State<CustomQRScanner>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _animation;
-
-  @override
-  void initState() {
-    super.initState();
-
-    // Animación suave de línea de escaneo
-    _controller =
-        AnimationController(vsync: this, duration: const Duration(seconds: 2))
-          ..repeat(reverse: true);
-
-    _animation = Tween<double>(begin: -120, end: 120).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+class _CustomQRScannerState extends State<CustomQRScanner> {
+  final MobileScannerController controller = MobileScannerController();
+  bool _isScanning = true;
 
   @override
   Widget build(BuildContext context) {
+    // Detectar si es web
+    final bool isWeb = UniversalPlatform.isWeb;
+    
+    if (isWeb) {
+      return _buildWebScanner();
+    } else {
+      return _buildMobileScanner();
+    }
+  }
+
+  Widget _buildWebScanner() {
     return Scaffold(
-      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text(
-          'Escanear QR',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: true,
+        title: const Text('Escanear QR'),
+        backgroundColor: const Color(0xFF1e3c72),
+        foregroundColor: Colors.white,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              Color(0xFF141E30),
-              Color(0xFF243B55),
-              Color(0xFF1e3c72),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 250,
+                height: 250,
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.red, width: 3),
+                ),
+                child: const Icon(
+                  Icons.qr_code_scanner,
+                  size: 150,
+                  color: Color(0xFF1e3c72),
+                ),
+              ),
+              const SizedBox(height: 30),
+              const Text(
+                'Escaneo en Web',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Para escanear un código QR en versión web, ingresa el código manualmente:',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 30),
+              ElevatedButton.icon(
+                onPressed: _simularScan,
+                icon: const Icon(Icons.qr_code),
+                label: const Text('INGRESAR CÓDIGO'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                  backgroundColor: const Color(0xFF1e3c72),
+                  foregroundColor: Colors.white,
+                ),
+              ),
             ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
           ),
         ),
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 25),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(30),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                child: Container(
-                  padding: const EdgeInsets.all(30),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.2),
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        "Coloca el código dentro del recuadro",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                        ),
-                      ),
+      ),
+    );
+  }
 
-                      const SizedBox(height: 30),
-
-                      // Marco del escáner moderno
-                      Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Container(
-                            width: 260,
-                            height: 260,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(25),
-                              border: Border.all(
-                                color: Colors.white,
-                                width: 2,
-                              ),
-                              color: Colors.black.withOpacity(0.3),
-                            ),
-                          ),
-
-                          const Icon(
-                            Icons.qr_code_rounded,
-                            size: 140,
-                            color: Colors.white24,
-                          ),
-
-                          // Línea animada de escaneo
-                          AnimatedBuilder(
-                            animation: _animation,
-                            builder: (context, child) {
-                              return Positioned(
-                                top: 130 + _animation.value,
-                                child: Container(
-                                  width: 220,
-                                  height: 3,
-                                  decoration: BoxDecoration(
-                                    color: Colors.cyanAccent,
-                                    borderRadius: BorderRadius.circular(10),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.cyanAccent
-                                            .withOpacity(0.8),
-                                        blurRadius: 10,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 35),
-
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _simularScan,
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 18),
-                            backgroundColor: Colors.white,
-                            foregroundColor: const Color(0xFF1e3c72),
-                            elevation: 10,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(40),
-                            ),
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.qr_code_scanner),
-                              SizedBox(width: 12),
-                              Text(
-                                'Simular Escaneo',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 15),
-
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text(
-                          "Cancelar",
-                          style: TextStyle(color: Colors.white70),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+  Widget _buildMobileScanner() {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Escanear QR'),
+        backgroundColor: const Color(0xFF1e3c72),
+        foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: ValueListenableBuilder(
+              valueListenable: controller,
+              builder: (context, state, child) {
+                return Icon(
+                  state.torchState == TorchState.on
+                      ? Icons.flash_on
+                      : Icons.flash_off,
+                );
+              },
+            ),
+            onPressed: () => controller.toggleTorch(),
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          MobileScanner(
+            controller: controller,
+            onDetect: (capture) {
+              if (!_isScanning) return;
+              final List<Barcode> barcodes = capture.barcodes;
+              for (final barcode in barcodes) {
+                if (barcode.rawValue != null) {
+                  _isScanning = false;
+                  widget.onScan(barcode.rawValue!);
+                  break;
+                }
+              }
+            },
+          ),
+          Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.red, width: 3),
+            ),
+            margin: const EdgeInsets.all(50),
+          ),
+          const Positioned(
+            bottom: 50,
+            left: 0,
+            right: 0,
+            child: Text(
+              'Coloca el código QR dentro del recuadro',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                backgroundColor: Colors.black54,
+                fontSize: 16
+                
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
@@ -199,40 +154,41 @@ class _CustomQRScannerState extends State<CustomQRScanner>
   void _simularScan() {
     showDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
+      builder: (context) => AlertDialog(
+        title: const Text('Ingresar Código'),
+        content: TextField(
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: 'Ej: AULA-101',
+            border: OutlineInputBorder(),
           ),
-          title: const Text("Simular Escaneo"),
-          content: TextField(
-            autofocus: true,
-            decoration: const InputDecoration(
-              hintText: "Ej: AULA-101",
-              border: OutlineInputBorder(),
-            ),
-            onSubmitted: (value) {
-              if (value.isNotEmpty) {
-                Navigator.pop(context);
-                widget.onScan(value);
-              }
+          onSubmitted: (value) {
+            if (value.isNotEmpty) {
+              Navigator.pop(context);
+              widget.onScan(value);
+            }
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // Cerramos el diálogo sin hacer nada
+              Navigator.pop(context);
             },
+            child: const Text('Cerrar'),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancelar"),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                widget.onScan("AULA-101");
-              },
-              child: const Text("Escanear"),
-            ),
-          ],
-        );
-      },
+        ],
+      ),
     );
+  }
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
   }
 }

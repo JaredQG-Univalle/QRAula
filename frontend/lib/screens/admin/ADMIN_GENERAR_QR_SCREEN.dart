@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
+import 'dart:io';
 import 'package:flutter/rendering.dart';
 import '../../services/api_service.dart';
 
@@ -68,54 +68,7 @@ class _AdminGenerarQRScreenState extends State<AdminGenerarQRScreen> {
     }
   }
 
-  Future<void> _downloadQR() async {
-    if (aulaSeleccionada == null) return;
-
-    setState(() => isGenerating = true);
-
-    try {
-      // Capturar el widget del QR como imagen
-      final boundary = _qrKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
-      if (boundary == null) throw Exception('No se pudo capturar el QR');
-
-      final image = await boundary.toImage(pixelRatio: 3.0);
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      final pngBytes = byteData?.buffer.asUint8List();
-
-      if (pngBytes == null) throw Exception('Error al generar imagen');
-
-      // Guardar en la galería
-      final result = await ImageGallerySaver.saveImage(
-        pngBytes,
-        quality: 100,
-        name: 'aula_qr_${aulaSeleccionada!['codigo']}_${DateTime.now().millisecondsSinceEpoch}.png',
-      );
-
-      if (result['isSuccess']) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ QR guardado en la galería'),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-          ),
-        );
-      } else {
-        throw Exception('Error al guardar');
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Error al guardar: $e'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    } finally {
-      setState(() => isGenerating = false);
-    }
-  }
-
-  Future<void> _shareQR() async {
+  Future<void> _guardarQR() async {
     if (aulaSeleccionada == null) return;
 
     setState(() => isGenerating = true);
@@ -133,10 +86,54 @@ class _AdminGenerarQRScreenState extends State<AdminGenerarQRScreen> {
 
       // Guardar temporalmente
       final tempDir = await getTemporaryDirectory();
-      final file = await File('${tempDir.path}/qr_${aulaSeleccionada!['codigo']}.png').create();
+      final file = File('${tempDir.path}/qr_${aulaSeleccionada!['codigo']}.png');
       await file.writeAsBytes(pngBytes);
 
       // Compartir
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'Código QR del aula: ${aulaSeleccionada!['nombre']}\nCódigo: ${aulaSeleccionada!['codigo']}',
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ QR generado y listo para compartir'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('❌ Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() => isGenerating = false);
+    }
+  }
+
+  Future<void> _compartirQR() async {
+    if (aulaSeleccionada == null) return;
+
+    setState(() => isGenerating = true);
+
+    try {
+      final boundary = _qrKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) throw Exception('No se pudo capturar el QR');
+
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      final pngBytes = byteData?.buffer.asUint8List();
+
+      if (pngBytes == null) throw Exception('Error al generar imagen');
+
+      final tempDir = await getTemporaryDirectory();
+      final file = File('${tempDir.path}/qr_${aulaSeleccionada!['codigo']}.png');
+      await file.writeAsBytes(pngBytes);
+
       await Share.shareXFiles(
         [XFile(file.path)],
         text: 'Código QR del aula: ${aulaSeleccionada!['nombre']}\nCódigo: ${aulaSeleccionada!['codigo']}',
@@ -147,7 +144,6 @@ class _AdminGenerarQRScreenState extends State<AdminGenerarQRScreen> {
         SnackBar(
           content: Text('❌ Error al compartir: $e'),
           backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
         ),
       );
     } finally {
@@ -155,9 +151,7 @@ class _AdminGenerarQRScreenState extends State<AdminGenerarQRScreen> {
     }
   }
 
-  Future<void> _printQR() async {
-    if (aulaSeleccionada == null) return;
-
+  Future<void> _imprimirQR() async {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('🖨️ Función de impresión en desarrollo'),
@@ -366,21 +360,21 @@ class _AdminGenerarQRScreenState extends State<AdminGenerarQRScreen> {
                                       children: [
                                         _buildActionButton(
                                           icon: Icons.download,
-                                          label: 'Descargar',
+                                          label: 'Guardar',
                                           color: const Color(0xFF1e3c72),
-                                          onPressed: _downloadQR,
+                                          onPressed: _guardarQR,
                                         ),
                                         _buildActionButton(
                                           icon: Icons.share,
                                           label: 'Compartir',
                                           color: Colors.blue,
-                                          onPressed: _shareQR,
+                                          onPressed: _compartirQR,
                                         ),
                                         _buildActionButton(
                                           icon: Icons.print,
                                           label: 'Imprimir',
                                           color: Colors.green,
-                                          onPressed: _printQR,
+                                          onPressed: _imprimirQR,
                                         ),
                                       ],
                                     ),
