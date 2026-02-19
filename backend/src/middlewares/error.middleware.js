@@ -1,11 +1,15 @@
-function errorHandler(err, req, res, next) {
-  console.error("🔥 Error:", err);
+// MIDDLEWARE DE ERRORES - DEBE TENER 4 PARÁMETROS
+const errorMiddleware = (err, req, res, next) => {
+  console.error('❌ Error:', err);
 
-  const status = err.statusCode || 500;
-  return res.status(status).json({
-    ok: false,
-    message: err.message || "Error interno del servidor",
+  // Error por defecto
+  const status = err.status || 500;
+  const message = err.message || 'Error interno del servidor';
+
+  res.status(status).json({
+    error: message,
+    timestamp: new Date().toISOString()
   });
-}
+};
 
-module.exports = errorHandler;
+module.exports = { errorMiddleware };

@@ -1,21 +1,23 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'features/health/health_page.dart';
+import 'screens/inicio_screen.dart';
 
-Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env");
-  runApp(const MyApp());
+void main() {
+  runApp(const AulaQRApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class AulaQRApp extends StatelessWidget {
+  const AulaQRApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
+      title: 'AulaQR',
       debugShowCheckedModeBanner: false,
-      home: HealthPage(),
+      theme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1e3c72)),
+        useMaterial3: true,
+      ),
+      home: const InicioScreen(),
     );
   }
 }
