@@ -4,6 +4,7 @@ import '../../services/api_service.dart';
 import '../estudiante/aula_info_screen.dart';
 import '../../widgets/custom_qr_scanner.dart';
 import 'docente_avisos_screen.dart';
+import 'docente_reportes_screen.dart'; // ← IMPORTAR LA NUEVA PANTALLA
 
 class DocenteHomeScreen extends StatefulWidget {
   const DocenteHomeScreen({super.key});
@@ -167,6 +168,7 @@ class _DocenteHomeScreenState extends State<DocenteHomeScreen> {
                           crossAxisSpacing: 16,
                           childAspectRatio: 1.0,
                           children: [
+                            // Opción 1: Escanear QR
                             _buildMenuCard(
                               icon: Icons.qr_code_scanner,
                               title: 'Escanear QR',
@@ -191,6 +193,8 @@ class _DocenteHomeScreenState extends State<DocenteHomeScreen> {
                                 );
                               },
                             ),
+                            
+                            // Opción 2: Mis Avisos
                             _buildMenuCard(
                               icon: Icons.warning,
                               title: 'Mis Avisos',
@@ -204,8 +208,36 @@ class _DocenteHomeScreenState extends State<DocenteHomeScreen> {
                                 );
                               },
                             ),
-                         
-                         
+                            
+                            // Opción 3: Reportes Técnicos (NUEVA)
+                            _buildMenuCard(
+                              icon: Icons.report_problem,
+                              title: 'Reportes',
+                              subtitle: 'Reportar problemas',
+                              color: const Color(0xFFE53935),
+                              iconBgColor: const Color(0xFFE53935).withOpacity(0.1),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const DocenteReportesScreen()),
+                                );
+                              },
+                            ),
+                            
+                            // Opción 4: Historial de Reportes
+                            _buildMenuCard(
+                              icon: Icons.history,
+                              title: 'Historial',
+                              subtitle: 'Mis reportes',
+                              color: const Color(0xFF43A047),
+                              iconBgColor: const Color(0xFF43A047).withOpacity(0.1),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const DocenteReportesScreen()),
+                                );
+                              },
+                            ),
                           ],
                         ),
                       ),

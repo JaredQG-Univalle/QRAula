@@ -325,7 +325,6 @@ class ApiService {
   }
 
   // ============= AVISOS =============
-  // 🔴 NUEVO MÉTODO - Obtener todos los avisos
   static Future<List<dynamic>> getAvisos() async {
     try {
       final headers = await _getHeaders();
@@ -360,7 +359,6 @@ class ApiService {
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        _printLog('AVISOS', 'Encontrados: ${data.length} avisos');
         return data;
       }
       return [];
@@ -527,10 +525,32 @@ class ApiService {
   static Future<List<dynamic>> getReportes() async {
     try {
       final headers = await _getHeaders();
-      _printLog('REPORTES', 'Obteniendo reportes');
+      _printLog('REPORTES', 'Obteniendo todos los reportes');
       
       final response = await http.get(
         Uri.parse('$baseUrl/reportes'),
+        headers: headers,
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        _printLog('REPORTES', 'Encontrados: ${data.length} reportes');
+        return data;
+      }
+      return [];
+    } catch (e) {
+      _printLog('REPORTES ERROR', e.toString());
+      return [];
+    }
+  }
+
+  static Future<List<dynamic>> getMisReportes() async {
+    try {
+      final headers = await _getHeaders();
+      _printLog('REPORTES', 'Obteniendo mis reportes');
+      
+      final response = await http.get(
+        Uri.parse('$baseUrl/reportes/mis-reportes'),
         headers: headers,
       ).timeout(const Duration(seconds: 10));
 

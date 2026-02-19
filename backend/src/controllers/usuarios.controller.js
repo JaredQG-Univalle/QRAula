@@ -1,5 +1,4 @@
 const db = require('../config/db');
-const bcrypt = require('bcryptjs');
 
 const getDocentes = async (req, res) => {
   try {
@@ -35,12 +34,10 @@ const create = async (req, res) => {
       return res.status(400).json({ error: 'El correo ya está registrado' });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
+    // Usar texto plano por ahora (luego implementar bcrypt)
     const [result] = await db.query(
       'INSERT INTO usuarios (nombre, apellido, correo, password, rol) VALUES (?, ?, ?, ?, ?)',
-      [nombre, apellido, correo, hashedPassword, rol || 'DOCENTE']
+      [nombre, apellido, correo, password, rol || 'DOCENTE']
     );
 
     res.status(201).json({ 
@@ -56,15 +53,20 @@ const create = async (req, res) => {
 const update = async (req, res) => {
   try {
     const { id } = req.params;
-    const { nombre, apellido, correo, rol, estado } = req.body;
+    const { nombre, apellido, correo, rol } = req.body;
 
-    await db.query(
-      'UPDATE usuarios SET nombre = ?, apellido = ?, correo = ?, rol = ?, estado = ? WHERE id_usuario = ?',
-      [nombre, apellido, correo, rol, estado, id]
+    const [result] = await db.query(
+      'UPDATE usuarios SET nombre = ?, apellido = ?, correo = ?, rol = ? WHERE id_usuario = ?',
+      [nombre, apellido, correo, rol, id]
     );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
 
     res.json({ message: 'Usuario actualizado' });
   } catch (error) {
+    console.error('Error update usuario:', error);
     res.status(500).json({ error: 'Error al actualizar' });
   }
 };
@@ -72,9 +74,25 @@ const update = async (req, res) => {
 const delete_ = async (req, res) => {
   try {
     const { id } = req.params;
-    await db.query('DELETE FROM usuarios WHERE id_usuario = ?', [id]);
+    
+    // Verificar si el usuario tiene horarios asociados
+    const [horarios] = await db.query('SELECT id_horario FROM horarios WHERE id_usuario = ?', [id]);
+    if (horarios.length > 0) {
+      return res.status(400).json({ 
+        error: 'No se puede eliminar porque tiene horarios asignados',
+        count: horarios.length
+      });
+    }
+
+    const [result] = await db.query('DELETE FROM usuarios WHERE id_usuario = ?', [id]);
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
     res.json({ message: 'Usuario eliminado' });
   } catch (error) {
+    console.error('Error delete usuario:', error);
     res.status(500).json({ error: 'Error al eliminar' });
   }
 };

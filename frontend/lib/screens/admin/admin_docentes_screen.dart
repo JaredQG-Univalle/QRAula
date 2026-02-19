@@ -132,20 +132,34 @@ class _AdminDocentesScreenState extends State<AdminDocentesScreen> {
                       if (formKey.currentState!.validate()) {
                         setState(() => isLoading = true);
 
-                        // TODO: Implementar creación de docente cuando el backend lo soporte
-                        // Por ahora simulamos éxito
-                        await Future.delayed(const Duration(seconds: 1));
+                        final docenteData = {
+                          'nombre': nombreController.text,
+                          'apellido': apellidoController.text,
+                          'correo': emailController.text,
+                          'password': passwordController.text,
+                        };
+
+                        final result = await ApiService.createDocente(docenteData);
 
                         setState(() => isLoading = false);
-                        Navigator.pop(context);
 
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('✅ Docente creado exitosamente'),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                        _cargarDocentes();
+                        if (result['success'] == true) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('✅ Docente creado exitosamente'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                          _cargarDocentes();
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('❌ ${result['error'] ?? 'Error al crear'}'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
                       }
                     },
               child: const Text('Crear'),
@@ -225,17 +239,37 @@ class _AdminDocentesScreenState extends State<AdminDocentesScreen> {
                   : () async {
                       if (formKey.currentState!.validate()) {
                         setState(() => isLoading = true);
-                        await Future.delayed(const Duration(seconds: 1));
-                        setState(() => isLoading = false);
-                        Navigator.pop(context);
-                        
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('✅ Docente actualizado'),
-                            backgroundColor: Colors.green,
-                          ),
+
+                        final docenteData = {
+                          'nombre': nombreController.text,
+                          'apellido': apellidoController.text,
+                          'correo': emailController.text,
+                        };
+
+                        final result = await ApiService.updateDocente(
+                          docente['id_usuario'], 
+                          docenteData
                         );
-                        _cargarDocentes();
+
+                        setState(() => isLoading = false);
+
+                        if (result['success'] == true) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('✅ Docente actualizado'),
+                              backgroundColor: Colors.green,
+                            ),
+                          );
+                          _cargarDocentes();
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('❌ ${result['error'] ?? 'Error al actualizar'}'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
                       }
                     },
               child: const Text('Actualizar'),
@@ -250,8 +284,8 @@ class _AdminDocentesScreenState extends State<AdminDocentesScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Confirmar'),
-        content: Text('¿Eliminar al docente $nombre?'),
+        title: const Text('Confirmar Eliminación'),
+        content: Text('¿Estás seguro de eliminar al docente "$nombre"?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -269,14 +303,23 @@ class _AdminDocentesScreenState extends State<AdminDocentesScreen> {
     );
 
     if (confirm == true) {
-      // TODO: Implementar eliminación cuando el backend lo soporte
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Docente eliminado'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      _cargarDocentes();
+      final success = await ApiService.deleteDocente(id);
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Docente eliminado'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _cargarDocentes();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('❌ Error al eliminar'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -304,10 +347,17 @@ class _AdminDocentesScreenState extends State<AdminDocentesScreen> {
                     children: [
                       Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
                       const SizedBox(height: 16),
-                      Text(errorMessage!),
+                      Text(
+                        errorMessage!,
+                        style: const TextStyle(fontSize: 16),
+                        textAlign: TextAlign.center,
+                      ),
                       const SizedBox(height: 20),
                       ElevatedButton(
                         onPressed: _cargarDocentes,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1e3c72),
+                        ),
                         child: const Text('Reintentar'),
                       ),
                     ],
@@ -318,14 +368,34 @@ class _AdminDocentesScreenState extends State<AdminDocentesScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.people_outline, size: 80, color: Colors.grey[400]),
-                          const SizedBox(height: 16),
-                          Text(
+                          Container(
+                            width: 120,
+                            height: 120,
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.people_outline,
+                              size: 60,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          const Text(
                             'No hay docentes registrados',
                             style: TextStyle(
                               fontSize: 18,
-                              color: Colors.grey[600],
                               fontWeight: FontWeight.bold,
+                              color: Color(0xFF2C3E50),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Agrega tu primer docente usando el botón +',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 14,
                             ),
                           ),
                           const SizedBox(height: 30),
@@ -336,6 +406,9 @@ class _AdminDocentesScreenState extends State<AdminDocentesScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF1e3c72),
                               padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
                             ),
                           ),
                         ],
@@ -348,38 +421,78 @@ class _AdminDocentesScreenState extends State<AdminDocentesScreen> {
                         final docente = docentes[index];
                         return Card(
                           margin: const EdgeInsets.only(bottom: 12),
+                          elevation: 2,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                           ),
                           child: ListTile(
-                            contentPadding: const EdgeInsets.all(16),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
                             leading: CircleAvatar(
+                              radius: 28,
                               backgroundColor: const Color(0xFF1e3c72).withOpacity(0.1),
                               child: Text(
                                 '${docente['nombre']?[0] ?? ''}${docente['apellido']?[0] ?? ''}',
                                 style: const TextStyle(
-                                  color: Color(0xFF1e3c72),
+                                  fontSize: 20,
                                   fontWeight: FontWeight.bold,
+                                  color: Color(0xFF1e3c72),
                                 ),
                               ),
                             ),
                             title: Text(
                               '${docente['nombre'] ?? ''} ${docente['apellido'] ?? ''}',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
                             ),
-                            subtitle: Text(docente['correo'] ?? ''),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    const Icon(Icons.email, size: 14, color: Colors.grey),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      docente['correo'] ?? '',
+                                      style: TextStyle(
+                                        color: Colors.grey[600],
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                IconButton(
-                                  icon: const Icon(Icons.edit, color: Colors.blue),
-                                  onPressed: () => _editarDocente(docente),
+                                Container(
+                                  margin: const EdgeInsets.only(right: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: IconButton(
+                                    icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
+                                    onPressed: () => _editarDocente(docente),
+                                  ),
                                 ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete, color: Colors.red),
-                                  onPressed: () => _eliminarDocente(
-                                    docente['id_usuario'],
-                                    docente['nombre'],
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.red.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: IconButton(
+                                    icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                                    onPressed: () => _eliminarDocente(
+                                      docente['id_usuario'],
+                                      docente['nombre'],
+                                    ),
                                   ),
                                 ),
                               ],
@@ -388,10 +501,11 @@ class _AdminDocentesScreenState extends State<AdminDocentesScreen> {
                         );
                       },
                     ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: _showCrearDocenteDialog,
         backgroundColor: const Color(0xFF1e3c72),
-        child: const Icon(Icons.person_add),
+        icon: const Icon(Icons.person_add),
+        label: const Text('Agregar'),
       ),
     );
   }

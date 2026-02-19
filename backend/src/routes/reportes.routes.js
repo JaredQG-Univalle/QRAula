@@ -1,10 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const { authMiddleware } = require('../middlewares/auth.middleware');
+const reportesController = require('../controllers/reportes.controller');
+const { authMiddleware, adminMiddleware } = require('../middlewares/auth.middleware');
 
-// Temporalmente vacío - lo llenaremos después
-router.get('/', (req, res) => {
-  res.json({ message: 'Ruta de reportes - en construcción' });
-});
+// Rutas protegidas
+router.get('/', authMiddleware, adminMiddleware, reportesController.getAll);
+router.get('/mis-reportes', authMiddleware, reportesController.getByUsuario);
+router.post('/', authMiddleware, reportesController.create);
+router.patch('/:id/estado', authMiddleware, adminMiddleware, reportesController.updateEstado);
+router.delete('/:id', authMiddleware, adminMiddleware, reportesController.delete);
 
 module.exports = router;

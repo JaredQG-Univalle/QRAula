@@ -45,24 +45,29 @@ class _AulaInfoScreenState extends State<AulaInfoScreen> with SingleTickerProvid
         return;
       }
 
-      // Obtener horarios y avisos
-      final horariosData = await ApiService.getHorariosAula(info['id_aula']);
-      final avisosData = await ApiService.getAvisosAula(info['id_aula']);
+      // Obtener horarios y avisos en paralelo para mayor velocidad
+      final resultados = await Future.wait([
+        ApiService.getHorariosAula(info['id_aula']),
+        ApiService.getAvisosAula(info['id_aula']),
+      ]);
 
       if (!mounted) return;
 
       setState(() {
         aulaInfo = info;
-        horarios = horariosData;
-        avisos = avisosData;
+        horarios = resultados[0];
+        avisos = resultados[1];
         isLoading = false;
       });
       _animationController.forward();
     } catch (e) {
-      setState(() {
-        error = 'Error al cargar datos: $e';
-        isLoading = false;
-      });
+      print('❌ Error en _cargarInfo: $e');
+      if (mounted) {
+        setState(() {
+          error = 'Error al cargar datos: ${e.toString()}';
+          isLoading = false;
+        });
+      }
     }
   }
 
@@ -76,6 +81,19 @@ class _AulaInfoScreenState extends State<AulaInfoScreen> with SingleTickerProvid
         return Colors.red;
       default:
         return Colors.grey;
+    }
+  }
+
+  IconData _getEstadoIcon(String estado) {
+    switch (estado) {
+      case 'Disponible':
+        return Icons.check_circle;
+      case 'Mantenimiento':
+        return Icons.build;
+      case 'Cerrada':
+        return Icons.cancel;
+      default:
+        return Icons.help;
     }
   }
 
@@ -122,152 +140,30 @@ class _AulaInfoScreenState extends State<AulaInfoScreen> with SingleTickerProvid
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.error_outline, size: 64, color: Colors.red[300]),
-                      const SizedBox(height: 16),
-                      Text(error!, style: const TextStyle(fontSize: 16)),
-                      const SizedBox(height: 20),
-                      ElevatedButton(
-                        onPressed: () => Navigator.pop(context),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF1e3c72),
-                        ),
-                        child: const Text('Volver'),
-                      ),
-                    ],
-                  ),
-                )
+              ? _buildErrorWidget()
               : FadeTransition(
                   opacity: _animationController,
                   child: SingleChildScrollView(
+                    physics: const BouncingScrollPhysics(),
                     child: Column(
                       children: [
-                        // Header del aula
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(20),
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [Color(0xFF1e3c72), Color(0xFF2a5298)],
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: _getEstadoColor(aulaInfo['estado'] ?? 'Disponible').withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  aulaInfo['estado'] ?? 'Disponible',
-                                  style: TextStyle(
-                                    color: _getEstadoColor(aulaInfo['estado'] ?? 'Disponible'),
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 10),
-                              Text(
-                                aulaInfo['nombre'] ?? 'Aula',
-                                style: const TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              Text(
-                                aulaInfo['bloque_nombre'] ?? 'Bloque Principal',
-                                style: const TextStyle(color: Colors.white70, fontSize: 16),
-                              ),
-                            ],
-                          ),
-                        ),
-
+                        // Header del aula con gradiente
+                        _buildHeader(),
+                        
                         const SizedBox(height: 16),
 
-                        // Información rápida
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: _buildInfoCard(
-                                  icon: Icons.people,
-                                  title: 'Capacidad',
-                                  value: '${aulaInfo['capacidad'] ?? 0}',
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _buildInfoCard(
-                                  icon: Icons.build,
-                                  title: 'Equipamiento',
-                                  value: 'Ver detalles',
-                                  onTap: () => _showEquipamientoDialog(aulaInfo['equipamiento']),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        // Información rápida en tarjetas
+                        _buildQuickInfo(),
 
                         const SizedBox(height: 24),
 
                         // HORARIO COMPLETO
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Row(
-                                children: [
-                                  Icon(Icons.schedule, color: Color(0xFF1e3c72)),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Horario Semanal',
-                                    style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 16),
-                              HorarioTablaWidget(horarios: horarios),
-                            ],
-                          ),
-                        ),
+                        _buildHorarioSection(),
 
                         const SizedBox(height: 24),
 
-                        // Avisos
-                        if (avisos.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Row(
-                                  children: [
-                                    Icon(Icons.warning, color: Colors.orange),
-                                    SizedBox(width: 8),
-                                    Text(
-                                      'Avisos',
-                                      style: TextStyle(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 16),
-                                ...avisos.map((aviso) => _buildAvisoCard(aviso)).toList(),
-                              ],
-                            ),
-                          ),
+                        // Avisos importantes
+                        if (avisos.isNotEmpty) _buildAvisosSection(),
 
                         const SizedBox(height: 20),
                       ],
@@ -277,10 +173,118 @@ class _AulaInfoScreenState extends State<AulaInfoScreen> with SingleTickerProvid
     );
   }
 
+  Widget _buildHeader() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF1e3c72), Color(0xFF2a5298)],
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
+      ),
+      child: Column(
+        children: [
+          // Estado del aula con ícono
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: _getEstadoColor(aulaInfo['estado'] ?? 'Disponible').withOpacity(0.2),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(
+                color: _getEstadoColor(aulaInfo['estado'] ?? 'Disponible'),
+                width: 1,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _getEstadoIcon(aulaInfo['estado'] ?? 'Disponible'),
+                  color: _getEstadoColor(aulaInfo['estado'] ?? 'Disponible'),
+                  size: 16,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  aulaInfo['estado'] ?? 'Disponible',
+                  style: TextStyle(
+                    color: _getEstadoColor(aulaInfo['estado'] ?? 'Disponible'),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          // Nombre del aula
+          Text(
+            aulaInfo['nombre'] ?? 'Aula',
+            style: const TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: 8),
+          
+          // Bloque
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.apartment, color: Colors.white70, size: 16),
+              const SizedBox(width: 4),
+              Text(
+                aulaInfo['bloque_nombre'] ?? 'Bloque Principal',
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickInfo() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: [
+          Expanded(
+            child: _buildInfoCard(
+              icon: Icons.people,
+              title: 'Capacidad',
+              value: '${aulaInfo['capacidad'] ?? 0}',
+              subtitle: 'personas',
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: _buildInfoCard(
+              icon: Icons.build,
+              title: 'Equipamiento',
+              value: 'Ver detalles',
+              subtitle: 'tocar para ver',
+              onTap: () => _showEquipamientoDialog(aulaInfo['equipamiento']),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildInfoCard({
     required IconData icon,
     required String title,
     required String value,
+    required String subtitle,
     VoidCallback? onTap,
   }) {
     return GestureDetector(
@@ -289,24 +293,115 @@ class _AulaInfoScreenState extends State<AulaInfoScreen> with SingleTickerProvid
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.grey.withValues(alpha: 0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: Colors.grey.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
         child: Column(
           children: [
-            Icon(icon, color: const Color(0xFF1e3c72), size: 30),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1e3c72).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: const Color(0xFF1e3c72), size: 24),
+            ),
             const SizedBox(height: 8),
-            Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
             const SizedBox(height: 4),
-            Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text(
+              value,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: Color(0xFF2C3E50),
+              ),
+            ),
+            Text(
+              subtitle,
+              style: const TextStyle(fontSize: 10, color: Colors.grey),
+            ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildHorarioSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1e3c72).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.schedule, color: Color(0xFF1e3c72), size: 20),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Horario Semanal',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2C3E50),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          HorarioTablaWidget(horarios: horarios),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAvisosSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFF6B6B), Color(0xFFFF8E53)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.warning, color: Colors.white, size: 20),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Avisos',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF2C3E50),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ...avisos.map((aviso) => _buildAvisoCard(aviso)),
+        ],
       ),
     );
   }
@@ -319,11 +414,19 @@ class _AulaInfoScreenState extends State<AulaInfoScreen> with SingleTickerProvid
         gradient: const LinearGradient(
           colors: [Color(0xFFFF6B6B), Color(0xFFFF8E53)],
         ),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFF6B6B).withOpacity(0.2),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.warning, color: Colors.white),
+          const Icon(Icons.warning, color: Colors.white, size: 24),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -334,17 +437,84 @@ class _AulaInfoScreenState extends State<AulaInfoScreen> with SingleTickerProvid
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
+                    fontSize: 16,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   aviso['contenido'] ?? '',
-                  style: const TextStyle(color: Colors.white70),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                  ),
                 ),
+                if (aviso['fecha_publicacion'] != null) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.access_time, color: Colors.white70, size: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        _formatFecha(aviso['fecha_publicacion']),
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildErrorWidget() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 80, color: Colors.red[300]),
+            const SizedBox(height: 16),
+            Text(
+              '¡Ups! Algo salió mal',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[800],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              error!,
+              style: const TextStyle(fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () => _cargarInfo(),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Reintentar'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1e3c72),
+                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Volver al inicio'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -354,15 +524,30 @@ class _AulaInfoScreenState extends State<AulaInfoScreen> with SingleTickerProvid
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Equipamiento'),
-        content: Text(equipamiento ?? 'No especificado'),
+        content: SingleChildScrollView(
+          child: Text(equipamiento ?? 'No especificado'),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cerrar'),
           ),
         ],
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
       ),
     );
+  }
+
+  String _formatFecha(String? fecha) {
+    if (fecha == null) return '';
+    try {
+      final datetime = DateTime.parse(fecha);
+      return '${datetime.day}/${datetime.month}/${datetime.year}';
+    } catch (e) {
+      return fecha;
+    }
   }
 
   @override
