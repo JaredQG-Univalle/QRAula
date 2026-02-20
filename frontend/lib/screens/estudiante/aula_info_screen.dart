@@ -32,7 +32,8 @@ class _AulaInfoScreenState extends State<AulaInfoScreen> with SingleTickerProvid
 
   Future<void> _cargarInfo() async {
     try {
-      // Obtener info del aula por QR
+      print('🔍 Escaneando QR: ${widget.codigoQR}');
+      
       final info = await ApiService.getAulaInfo(widget.codigoQR);
       
       if (!mounted) return;
@@ -45,7 +46,8 @@ class _AulaInfoScreenState extends State<AulaInfoScreen> with SingleTickerProvid
         return;
       }
 
-      // Obtener horarios y avisos en paralelo para mayor velocidad
+      print('✅ Aula encontrada: ${info['nombre']} (ID: ${info['id_aula']})');
+
       final resultados = await Future.wait([
         ApiService.getHorariosAula(info['id_aula']),
         ApiService.getAvisosAula(info['id_aula']),
@@ -59,9 +61,10 @@ class _AulaInfoScreenState extends State<AulaInfoScreen> with SingleTickerProvid
         avisos = resultados[1];
         isLoading = false;
       });
+      
       _animationController.forward();
     } catch (e) {
-      print('❌ Error en _cargarInfo: $e');
+      print('❌ Error: $e');
       if (mounted) {
         setState(() {
           error = 'Error al cargar datos: ${e.toString()}';
@@ -101,14 +104,14 @@ class _AulaInfoScreenState extends State<AulaInfoScreen> with SingleTickerProvid
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: Text(
-          aulaInfo['nombre'] ?? 'Información del Aula',
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        backgroundColor: const Color(0xFF1e3c72),
-        foregroundColor: Colors.white,
-        centerTitle: true,
+appBar: AppBar(
+  title: Text(
+    aulaInfo['nombre'] ?? 'Información del Aula',
+    style: const TextStyle(fontWeight: FontWeight.bold),
+  ),
+  backgroundColor: const Color(0xFF1e3c72),
+  foregroundColor: Colors.white,
+  centerTitle: true,
         actions: [
           Container(
             margin: const EdgeInsets.only(right: 8),
@@ -147,24 +150,13 @@ class _AulaInfoScreenState extends State<AulaInfoScreen> with SingleTickerProvid
                     physics: const BouncingScrollPhysics(),
                     child: Column(
                       children: [
-                        // Header del aula con gradiente
                         _buildHeader(),
-                        
                         const SizedBox(height: 16),
-
-                        // Información rápida en tarjetas
                         _buildQuickInfo(),
-
                         const SizedBox(height: 24),
-
-                        // HORARIO COMPLETO
                         _buildHorarioSection(),
-
                         const SizedBox(height: 24),
-
-                        // Avisos importantes
                         if (avisos.isNotEmpty) _buildAvisosSection(),
-
                         const SizedBox(height: 20),
                       ],
                     ),
@@ -190,7 +182,6 @@ class _AulaInfoScreenState extends State<AulaInfoScreen> with SingleTickerProvid
       ),
       child: Column(
         children: [
-          // Estado del aula con ícono
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
@@ -222,20 +213,15 @@ class _AulaInfoScreenState extends State<AulaInfoScreen> with SingleTickerProvid
             ),
           ),
           const SizedBox(height: 16),
-          
-          // Nombre del aula
           Text(
             aulaInfo['nombre'] ?? 'Aula',
             style: const TextStyle(
               fontSize: 32,
               fontWeight: FontWeight.bold,
               color: Colors.white,
-              letterSpacing: 1,
             ),
           ),
           const SizedBox(height: 8),
-          
-          // Bloque
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -313,10 +299,7 @@ class _AulaInfoScreenState extends State<AulaInfoScreen> with SingleTickerProvid
               child: Icon(icon, color: const Color(0xFF1e3c72), size: 24),
             ),
             const SizedBox(height: 8),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
+            Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
             const SizedBox(height: 4),
             Text(
               value,
@@ -448,22 +431,6 @@ class _AulaInfoScreenState extends State<AulaInfoScreen> with SingleTickerProvid
                     fontSize: 14,
                   ),
                 ),
-                if (aviso['fecha_publicacion'] != null) ...[
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(Icons.access_time, color: Colors.white70, size: 14),
-                      const SizedBox(width: 4),
-                      Text(
-                        _formatFecha(aviso['fecha_publicacion']),
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
               ],
             ),
           ),
@@ -508,11 +475,6 @@ class _AulaInfoScreenState extends State<AulaInfoScreen> with SingleTickerProvid
                 ),
               ),
             ),
-            const SizedBox(height: 12),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Volver al inicio'),
-            ),
           ],
         ),
       ),
@@ -538,16 +500,6 @@ class _AulaInfoScreenState extends State<AulaInfoScreen> with SingleTickerProvid
         ),
       ),
     );
-  }
-
-  String _formatFecha(String? fecha) {
-    if (fecha == null) return '';
-    try {
-      final datetime = DateTime.parse(fecha);
-      return '${datetime.day}/${datetime.month}/${datetime.year}';
-    } catch (e) {
-      return fecha;
-    }
   }
 
   @override

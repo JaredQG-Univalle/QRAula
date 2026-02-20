@@ -20,18 +20,20 @@ dependencies:
   # Almacenamiento local
   shared_preferences: ^2.2.2
   
-  # Escáner QR (solo mobile_scanner, eliminar qr_code_scanner)
-  mobile_scanner: ^6.0.2  # Este funciona en Android y iOS
+  # Escáner QR
+  mobile_scanner: ^3.5.0
   
   # Generador de QR
   qr_flutter: ^4.1.0
   
-  # Utilidades
-  universal_platform: ^1.1.0
-  provider: ^6.1.1
+  # Para compartir y guardar archivos
+  share_plus: ^7.2.1
   path_provider: ^2.1.1
   permission_handler: ^11.3.1
-  share_plus: ^7.2.1
+  
+  # Utilidades
+  provider: ^6.1.1
+  universal_platform: ^1.1.0
 
 dev_dependencies:
   flutter_test:

@@ -24,6 +24,9 @@ class _AdminGenerarQRScreenState extends State<AdminGenerarQRScreen> {
   String? errorMessage;
   final GlobalKey _qrKey = GlobalKey();
 
+  // 🔴 URL de la landing page
+  static const String landingPageUrl = 'https://landing-page-qraula-oeuj.vercel.app/';
+
   @override
   void initState() {
     super.initState();
@@ -32,12 +35,15 @@ class _AdminGenerarQRScreenState extends State<AdminGenerarQRScreen> {
   }
 
   Future<void> _solicitarPermisos() async {
-    if (await Permission.storage.request().isGranted) {
-      print('✅ Permiso de almacenamiento concedido');
+    var status = await Permission.storage.status;
+    if (!status.isGranted) {
+      await Permission.storage.request();
     }
   }
 
   Future<void> _cargarAulas() async {
+    if (!mounted) return;
+    
     setState(() {
       isLoading = true;
       errorMessage = null;
@@ -48,7 +54,7 @@ class _AdminGenerarQRScreenState extends State<AdminGenerarQRScreen> {
       
       if (mounted) {
         setState(() {
-          aulas = aulasData.map((aula) => {
+          aulas = aulasData.map<Map<String, dynamic>>((aula) => {
             'id': aula['id_aula'],
             'nombre': aula['nombre'],
             'codigo': aula['codigo_qr'],
@@ -68,13 +74,36 @@ class _AdminGenerarQRScreenState extends State<AdminGenerarQRScreen> {
     }
   }
 
+  // 🔴 Generar URL para el QR con redirección
+  String _generarURLQR(String codigoAula) {
+    // Creamos una URL que redirige a la landing page con el código del aula
+    // La landing page puede leer este parámetro y mostrar información
+    return '$landingPageUrl?codigo=$codigoAula&app=aulaqr';
+  }
+
+  // 🔴 Mensaje para compartir
+  String _generarMensajeCompartir(Map<String, dynamic> aula) {
+    return '''
+🏫 *AulaQR - ${aula['nombre']}*
+
+📌 Bloque: ${aula['bloque']}
+👥 Capacidad: ${aula['capacidad']} personas
+
+🔍 Escanea este código QR con la app AulaQR para ver el horario completo.
+
+📲 Descarga la app aquí:
+$landingPageUrl
+
+Código del aula: ${aula['codigo']}
+    ''';
+  }
+
   Future<void> _guardarQR() async {
-    if (aulaSeleccionada == null) return;
+    if (aulaSeleccionada == null || !mounted) return;
 
     setState(() => isGenerating = true);
 
     try {
-      // Capturar el widget del QR como imagen
       final boundary = _qrKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
       if (boundary == null) throw Exception('No se pudo capturar el QR');
 
@@ -84,39 +113,45 @@ class _AdminGenerarQRScreenState extends State<AdminGenerarQRScreen> {
 
       if (pngBytes == null) throw Exception('Error al generar imagen');
 
-      // Guardar temporalmente
       final tempDir = await getTemporaryDirectory();
       final file = File('${tempDir.path}/qr_${aulaSeleccionada!['codigo']}.png');
       await file.writeAsBytes(pngBytes);
 
-      // Compartir
+      if (!mounted) return;
+
       await Share.shareXFiles(
         [XFile(file.path)],
-        text: 'Código QR del aula: ${aulaSeleccionada!['nombre']}\nCódigo: ${aulaSeleccionada!['codigo']}',
+        text: _generarMensajeCompartir(aulaSeleccionada!),
       );
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ QR generado y listo para compartir'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ QR generado y listo para compartir'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
 
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Error: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
-      setState(() => isGenerating = false);
+      if (mounted) {
+        setState(() => isGenerating = false);
+      }
     }
   }
 
   Future<void> _compartirQR() async {
-    if (aulaSeleccionada == null) return;
+    if (aulaSeleccionada == null || !mounted) return;
 
     setState(() => isGenerating = true);
 
@@ -134,24 +169,32 @@ class _AdminGenerarQRScreenState extends State<AdminGenerarQRScreen> {
       final file = File('${tempDir.path}/qr_${aulaSeleccionada!['codigo']}.png');
       await file.writeAsBytes(pngBytes);
 
+      if (!mounted) return;
+
       await Share.shareXFiles(
         [XFile(file.path)],
-        text: 'Código QR del aula: ${aulaSeleccionada!['nombre']}\nCódigo: ${aulaSeleccionada!['codigo']}',
+        text: _generarMensajeCompartir(aulaSeleccionada!),
       );
 
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Error al compartir: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('❌ Error al compartir: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
-      setState(() => isGenerating = false);
+      if (mounted) {
+        setState(() => isGenerating = false);
+      }
     }
   }
 
   Future<void> _imprimirQR() async {
+    if (!mounted) return;
+    
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('🖨️ Función de impresión en desarrollo'),
@@ -266,7 +309,7 @@ class _AdminGenerarQRScreenState extends State<AdminGenerarQRScreen> {
                               leading: Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF1e3c72).withOpacity(0.1),
+                                  color: const Color(0xFF1e3c72).withValues(alpha: 0.1),
                                   shape: BoxShape.circle,
                                 ),
                                 child: const Icon(Icons.meeting_room, color: Color(0xFF1e3c72), size: 20),
@@ -317,7 +360,7 @@ class _AdminGenerarQRScreenState extends State<AdminGenerarQRScreen> {
                                         borderRadius: BorderRadius.circular(20),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: Colors.grey.withOpacity(0.2),
+                                            color: Colors.grey.withValues(alpha: 0.2),
                                             blurRadius: 10,
                                             offset: const Offset(0, 4),
                                           ),
@@ -325,8 +368,10 @@ class _AdminGenerarQRScreenState extends State<AdminGenerarQRScreen> {
                                       ),
                                       child: Column(
                                         children: [
+                                          // 🔴 AQUÍ ESTÁ EL CAMBIO IMPORTANTE
+                                          // El QR ahora contiene la URL de la landing page
                                           QrImageView(
-                                            data: aulaSeleccionada!['codigo'],
+                                            data: _generarURLQR(aulaSeleccionada!['codigo']),
                                             version: QrVersions.auto,
                                             size: 200,
                                             backgroundColor: Colors.white,
@@ -340,11 +385,46 @@ class _AdminGenerarQRScreenState extends State<AdminGenerarQRScreen> {
                                               fontSize: 16,
                                             ),
                                           ),
-                                          Text(
-                                            'Código: ${aulaSeleccionada!['codigo']}',
-                                            style: TextStyle(
-                                              color: Colors.grey[600],
-                                              fontSize: 12,
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.blue.withValues(alpha: 0.1),
+                                              borderRadius: BorderRadius.circular(12),
+                                            ),
+                                            child: Text(
+                                              'Código: ${aulaSeleccionada!['codigo']}',
+                                              style: TextStyle(
+                                                color: Colors.blue[700],
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Container(
+                                            padding: const EdgeInsets.all(8),
+                                            decoration: BoxDecoration(
+                                              color: Colors.grey[100],
+                                              borderRadius: BorderRadius.circular(8),
+                                            ),
+                                            child: const Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(Icons.info, color: Colors.blue, size: 14),
+                                                SizedBox(width: 4),
+                                                Expanded(
+                                                  child: Text(
+                                                    'Al escanear con cámara normal, redirige a la landing page',
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      color: Colors.grey,
+                                                    ),
+                                                    textAlign: TextAlign.center,
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
                                         ],
