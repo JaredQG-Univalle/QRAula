@@ -4,6 +4,15 @@ const db = require('../config/db');
 const verificarCruceHorarios = async (id_aula, dia_semana, hora_inicio, hora_fin, id_horario_excluir = null) => {
   console.log('🔍 Verificando cruce de horarios:', { id_aula, dia_semana, hora_inicio, hora_fin });
 
+  // Validar formato de hora (HH:MM)
+  const horaRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+  if (!horaRegex.test(hora_inicio) || !horaRegex.test(hora_fin)) {
+    return {
+      hayCruce: true,
+      error: 'Formato de hora inválido. Use HH:MM (ej: 08:30)'
+    };
+  }
+
   // Convertir horas a minutos para comparar
   const [horaInicioH, horaInicioM] = hora_inicio.split(':').map(Number);
   const [horaFinH, horaFinM] = hora_fin.split(':').map(Number);
@@ -15,21 +24,25 @@ const verificarCruceHorarios = async (id_aula, dia_semana, hora_inicio, hora_fin
   if (finMinutos <= inicioMinutos) {
     return {
       hayCruce: true,
-      error: 'La hora de fin debe ser mayor a la hora de inicio'
+      error: '⏰ La hora de fin debe ser mayor a la hora de inicio'
     };
   }
 
   // Consultar horarios existentes en la misma aula y día
   let query = `
-    SELECT id_horario, hora_inicio, hora_fin 
-    FROM horarios 
-    WHERE id_aula = ? AND dia_semana = ?
+    SELECT h.*, 
+           m.nombre as materia_nombre,
+           CONCAT(u.nombre, ' ', u.apellido) as docente_nombre
+    FROM horarios h
+    LEFT JOIN materias m ON h.id_materia = m.id_materia
+    LEFT JOIN usuarios u ON h.id_usuario = u.id_usuario
+    WHERE h.id_aula = ? AND h.dia_semana = ?
   `;
   const params = [id_aula, dia_semana];
 
   // Excluir el horario actual si estamos actualizando
   if (id_horario_excluir) {
-    query += ' AND id_horario != ?';
+    query += ' AND h.id_horario != ?';
     params.push(id_horario_excluir);
   }
 
@@ -43,12 +56,11 @@ const verificarCruceHorarios = async (id_aula, dia_semana, hora_inicio, hora_fin
     const existenteInicioMinutos = existenteH * 60 + existenteM;
     const existenteFinMinutos = existenteFinH * 60 + existenteFinM;
 
-    // Verificar si hay cruce
     // Caso 1: El nuevo horario empieza durante uno existente
     if (inicioMinutos >= existenteInicioMinutos && inicioMinutos < existenteFinMinutos) {
       return {
         hayCruce: true,
-        error: `El horario se cruza con otro existente (${horario.hora_inicio} - ${horario.hora_fin})`,
+        error: `❌ CRUCE DETECTADO: El horario (${hora_inicio} - ${hora_fin}) se cruza con ${horario.materia_nombre || 'clase'} (${horario.hora_inicio} - ${horario.hora_fin}) en la misma aula`,
         horarioConflicto: horario
       };
     }
@@ -57,7 +69,7 @@ const verificarCruceHorarios = async (id_aula, dia_semana, hora_inicio, hora_fin
     if (finMinutos > existenteInicioMinutos && finMinutos <= existenteFinMinutos) {
       return {
         hayCruce: true,
-        error: `El horario se cruza con otro existente (${horario.hora_inicio} - ${horario.hora_fin})`,
+        error: `❌ CRUCE DETECTADO: El horario (${hora_inicio} - ${hora_fin}) se cruza con ${horario.materia_nombre || 'clase'} (${horario.hora_inicio} - ${horario.hora_fin})`,
         horarioConflicto: horario
       };
     }
@@ -66,7 +78,7 @@ const verificarCruceHorarios = async (id_aula, dia_semana, hora_inicio, hora_fin
     if (inicioMinutos <= existenteInicioMinutos && finMinutos >= existenteFinMinutos) {
       return {
         hayCruce: true,
-        error: `El horario cubre completamente otro existente (${horario.hora_inicio} - ${horario.hora_fin})`,
+        error: `❌ CRUCE DETECTADO: El horario (${hora_inicio} - ${hora_fin}) cubre completamente ${horario.materia_nombre || 'clase'} (${horario.hora_inicio} - ${horario.hora_fin})`,
         horarioConflicto: horario
       };
     }
@@ -306,7 +318,7 @@ const verificarDisponibilidad = async (req, res) => {
     
     res.json({
       disponible: !validacion.hayCruce,
-      mensaje: validacion.error || 'Horario disponible',
+      mensaje: validacion.error || '✅ Horario disponible',
       conflicto: validacion.horarioConflicto
     });
   } catch (error) {
