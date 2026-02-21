@@ -35,6 +35,9 @@ router.use('/health', healthRoutes);
 router.use('/usuarios', usuariosRoutes);  // ✅ NUEVA RUTA
 router.use('/materias', materiasRoutes);  // ✅ NUEVA RUTA
 
+const logsRoutes = require('./logs.routes');
+router.use('/logs', logsRoutes);
+
 // Ruta de información con TODOS los endpoints
 router.get('/', (req, res) => {
   res.json({
